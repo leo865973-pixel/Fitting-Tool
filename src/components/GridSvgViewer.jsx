@@ -52,6 +52,9 @@ export const GridSvgViewer = React.memo(React.forwardRef(({
     }, []);
 
     const handleSvgMouseDown = (e) => {
+        if (e.button === 1) {
+            e.preventDefault(); // Prevent default middle-click auto-scroll
+        }
         if (!isDragging) {
             panZoomState.current.isPanning = true;
             panZoomState.current.startX = e.clientX;
@@ -189,6 +192,8 @@ export const GridSvgViewer = React.memo(React.forwardRef(({
     };
 
     const handleSvgClick = (e) => {
+        if (e.button === 1 || e.button === 2) return; // Ignore middle and right clicks
+        
         const svg = svgRef.current;
         if (!svg) return;
         

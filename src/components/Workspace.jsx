@@ -66,12 +66,19 @@ const sheetTouchStartY = useRef(0);
             // Keyboard Shortcuts
             useEffect(() => {
                 const handleKeyDown = (e) => {
+                    if (e.key === 'Escape') {
+                        if (document.activeElement && document.activeElement.blur) {
+                            document.activeElement.blur();
+                        }
+                        handleBackgroundClick();
+                        return;
+                    }
+
                     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
                     if (e.key === '1') setCurrentView('left');
                     if (e.key === '2') setCurrentView('right');
                     if (e.key === '3') setCurrentView('2d');
-                    if (e.key === 'Escape') handleBackgroundClick();
                     if ((e.ctrlKey || e.metaKey) && e.key === 's') {
                         e.preventDefault();
                         handleCreateWO();
