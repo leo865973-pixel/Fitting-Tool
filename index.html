@@ -789,7 +789,7 @@
                 >
                     {currentView !== '2d' && (
                         <image 
-                            href={currentView === 'left' ? 'public/left_view.png' : 'public/right_view.png'} 
+                            href={currentView === 'left' ? 'left_view.png' : 'right_view.png'} 
                             x="0" y="0" width="800" height="620" 
                             preserveAspectRatio="xMidYMid meet"
                             opacity="0.8"
@@ -1749,11 +1749,9 @@ const sheetTouchStartY = useRef(0);
                                             {dotFilter === 'all' ? '全顯示' : (dotFilter === 'ng_only' ? '僅異常' : '全隱藏')}
                                         </span>
                                     </button>
-                                    {currentView === '2d' && (
-                                        <button onClick={handleResetView} className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-semibold bg-[#f5f5f7] text-[#86868b] hover:text-[#1d1d1f] transition-colors">
-                                            🔍 <span className="hidden sm:inline">預設視角</span>
-                                        </button>
-                                    )}
+                                    <button onClick={handleResetView} className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-semibold bg-[#f5f5f7] text-[#86868b] hover:text-[#1d1d1f] transition-colors">
+                                        🔍 <span className="hidden sm:inline">預設視角</span>
+                                    </button>
                                     {currentView === '2d' && (
                                         <button onClick={() => setShowHeatmap(!showHeatmap)} className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-semibold transition-colors ${showHeatmap ? 'bg-[#ff3b30]/10 text-[#ff3b30]' : 'bg-[#f5f5f7] text-[#86868b] hover:text-[#1d1d1f]'}`}>
                                             <Icons.Layers size={14} /> <span className="hidden sm:inline">{showHeatmap ? '關閉熱區圖' : '切換熱區圖'}</span><span className="sm:hidden">熱區圖</span>
