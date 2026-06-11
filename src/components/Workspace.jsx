@@ -395,12 +395,15 @@ const sheetTouchStartY = useRef(0);
                         issueData: updatedIssues 
                     };
                     createWorkOrder(newWO);
-                    showToast(`工單已自動更新 (${currentWOId})`, 'success');
+                    // 彈出提醒通知 (Popup reminder notification)
+                    alert(`已自動儲存工單：\n${currentWOId}`);
                     setIsDirty(false);
                 } else {
                     setIsDirty(true);
-                    openPrompt("自動建立工單", "偵測到新資料！請確認或變更工單名稱：", currentWOId, (newId) => {
-                        const finalId = newId && newId.trim() ? newId.trim() : currentWOId;
+                    const now = new Date();
+                    const defaultName = `WO-${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}-${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
+                    openPrompt("自動建立工單", "這是一張尚未建立的工單，請確認或變更工單名稱：", defaultName, (newId) => {
+                        const finalId = newId && newId.trim() ? newId.trim() : defaultName;
                         const newWO = { 
                             id: finalId, 
                             date: new Date().toLocaleString(), 

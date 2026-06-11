@@ -574,11 +574,47 @@
             }, []);
 
             const handleSvgMouseDown = (e) => {
+                if (e.button === 1) {
+                    e.preventDefault(); // Prevent default middle-click auto-scroll
+                }
                 if (!isDragging) {
                     panZoomState.current.isPanning = true;
                     panZoomState.current.startX = e.clientX;
                     panZoomState.current.startY = e.clientY;
                     panZoomState.current.startViewBox = viewBox;
+                    
+                    // Attach global listeners for reliable dragging
+                    window.addEventListener('mousemove', handleWindowMouseMove);
+                    window.addEventListener('mouseup', handleWindowMouseUp);
+                }
+            };
+            
+            const handleWindowMouseMove = (e) => {
+                if (panZoomState.current.isPanning) {
+                    const svg = svgRef.current;
+                    if (!svg) return;
+                    const rect = svg.getBoundingClientRect();
+                    const clientX = e.clientX;
+                    const clientY = e.clientY;
+                    const dx = clientX - panZoomState.current.startX;
+                    const dy = clientY - panZoomState.current.startY;
+                    const scaleX = viewBox.w / rect.width;
+                    const scaleY = viewBox.h / rect.height;
+                    setViewBox({
+                        ...viewBox,
+                        x: panZoomState.current.startViewBox.x - dx * scaleX,
+                        y: panZoomState.current.startViewBox.y - dy * scaleY
+                    });
+                    dragFlag.current = true;
+                }
+            };
+
+            const handleWindowMouseUp = () => {
+                if (panZoomState.current.isPanning) {
+                    panZoomState.current.isPanning = false;
+                    setTimeout(() => { dragFlag.current = false; }, 500);
+                    window.removeEventListener('mousemove', handleWindowMouseMove);
+                    window.removeEventListener('mouseup', handleWindowMouseUp);
                 }
             };
 
@@ -741,19 +777,19 @@
                         touchAction: 'none',
                         cursor: currentView !== '2d' ? `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'><path d='M12 2v20M2 12h20' stroke='%23ff3b30' stroke-width='2'/><circle cx='12' cy='12' r='8' fill='none' stroke='%23ffffff' stroke-width='1.5'/></svg>") 12 12, crosshair` : undefined
                     }}
-                    onMouseDown={currentView === '2d' ? handleSvgMouseDown : undefined}
-                    onMouseMove={currentView === '2d' ? handleSvgMouseMove : undefined}
-                    onMouseUp={currentView === '2d' ? handleSvgMouseUp : undefined}
-                    onMouseLeave={currentView === '2d' ? handleSvgMouseUp : undefined}
-                    onTouchStart={currentView === '2d' ? handleSvgTouchStart : undefined}
-                    onTouchMove={currentView === '2d' ? handleSvgTouchMove : undefined}
-                    onTouchEnd={currentView === '2d' ? handleSvgMouseUp : undefined}
+                    onMouseDown={handleSvgMouseDown}
+                    onMouseMove={handleSvgMouseMove}
+                    onMouseUp={handleSvgMouseUp}
+                    onMouseLeave={handleSvgMouseUp}
+                    onTouchStart={handleSvgTouchStart}
+                    onTouchMove={handleSvgTouchMove}
+                    onTouchEnd={handleSvgMouseUp}
                     onTouchCancel={currentView === '2d' ? handleSvgMouseUp : undefined}
                     onClick={handleSvgClick}
                 >
                     {currentView !== '2d' && (
                         <image 
-                            href={currentView === 'left' ? 'left_view.png' : 'right_view.png'} 
+                            href={currentView === 'left' ? 'public/left_view.png' : 'public/right_view.png'} 
                             x="0" y="0" width="800" height="620" 
                             preserveAspectRatio="xMidYMid meet"
                             opacity="0.8"
@@ -918,6 +954,28 @@ const sheetTouchStartY = useRef(0);
             const handleResetView = () => {
                 if (gridSvgRef.current) gridSvgRef.current.resetView();
             };
+
+            useEffect(() => {
+                const handleKeyDown = (e) => {
+                    if (e.key === 'Escape') {
+                        if (document.activeElement && document.activeElement.blur) {
+                            document.activeElement.blur();
+                        }
+                        setPreviewRecordId(null);
+                        setSelectedPart(null);
+                        setFormData({ part2: '', gap: '', flush: '', exactPosition: null, customPart1: '', customPart2: '' });
+                        setIssueFormData(prev => ({ ...prev, part2: '', exactPosition: null, customPart1: '', customPart2: '' }));
+                        setSheetState('collapsed');
+                        return;
+                    }
+                    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+                    if (e.key === '1') setCurrentView('left');
+                    if (e.key === '2') setCurrentView('right');
+                    if (e.key === '3') setCurrentView('2d');
+                };
+                window.addEventListener('keydown', handleKeyDown, true);
+                return () => window.removeEventListener('keydown', handleKeyDown, true);
+            }, [setCurrentView]);
 
             // 監聽部位選擇，自動載入該部位專屬公差
             useEffect(() => {
@@ -1204,6 +1262,43 @@ const sheetTouchStartY = useRef(0);
                 }
             };
 
+            const autoSaveWO = (updatedMeasurements, updatedIssues) => {
+                const isExisting = workOrders.some(wo => wo.id === currentWOId);
+                
+                if (isExisting) {
+                    const newWO = { 
+                        id: currentWOId, 
+                        date: new Date().toLocaleString(), 
+                        model: currentModel.name, 
+                        data: updatedMeasurements, 
+                        issueData: updatedIssues 
+                    };
+                    createWorkOrder(newWO);
+                    alert(`已自動儲存工單：\n${currentWOId}`);
+                    setIsDirty(false);
+                } else {
+                    setIsDirty(true);
+                    const now = new Date();
+                    const defaultName = `WO-${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}-${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
+                    openPrompt("自動建立工單", "這是一張尚未建立的工單，請確認或變更工單名稱：", defaultName, (newId) => {
+                        const finalId = newId && newId.trim() ? newId.trim() : defaultName;
+                        const newWO = { 
+                            id: finalId, 
+                            date: new Date().toLocaleString(), 
+                            model: currentModel.name, 
+                            data: updatedMeasurements, 
+                            issueData: updatedIssues 
+                        };
+                        createWorkOrder(newWO);
+                        if (finalId !== currentWOId) {
+                            setCurrentWOId(finalId);
+                        }
+                        showToast(`已建立並儲存工單 ${finalId}`, 'success');
+                        setIsDirty(false);
+                    });
+                }
+            };
+
             const handleSaveMeasurement = () => {
                 const p1 = selectedPart === 'custom_point' ? (formData.customPart1 || 'custom_point') : selectedPart;
                 const p2 = selectedPart === 'custom_point' ? (formData.customPart2 || 'custom_point') : formData.part2;
@@ -1220,14 +1315,15 @@ const sheetTouchStartY = useRef(0);
                     photoUrl: tempPhotoUrl, exactPosition: formData.exactPosition
                 };
                 
-                const existingIndex = measurements.findIndex(m => m.id === newRecord.id);
+                let updated = [...measurements];
+                const existingIndex = updated.findIndex(m => m.id === newRecord.id);
                 if (existingIndex >= 0) {
-                    const updated = [...measurements];
                     updated[existingIndex] = newRecord;
                     setMeasurements(updated);
                     addLog('修改量測', `修改了 ${PART_NAME_MAP[selectedPart]} 與 ${PART_NAME_MAP[formData.part2]} 的量測數據`);
                 } else {
-                    setMeasurements([...measurements, newRecord]);
+                    updated = [...updated, newRecord];
+                    setMeasurements(updated);
                     addLog('新增量測', `記錄了 ${PART_NAME_MAP[selectedPart]} 與 ${PART_NAME_MAP[formData.part2]} 的量測數據`);
                 }
                 setIsDirty(true);
@@ -1237,6 +1333,8 @@ const sheetTouchStartY = useRef(0);
                 setSheetState('collapsed');
                 setFormData({ part2: '', gap: '', flush: '', exactPosition: null, customPart1: '', customPart2: '' });
                 setTempPhotoUrl(null);
+
+                autoSaveWO(updated, issues);
             };
 
             const handleExportPDF = async () => {
@@ -1378,14 +1476,15 @@ const sheetTouchStartY = useRef(0);
                     photoUrl: tempPhotoUrl
                 };
                 
-                const existingIndex = issues.findIndex(i => i.id === newIssue.id);
+                let updated = [...issues];
+                const existingIndex = updated.findIndex(i => i.id === newIssue.id);
                 if (existingIndex >= 0) {
-                    const updated = [...issues];
                     updated[existingIndex] = newIssue;
                     setIssues(updated);
                     addLog('修改問題點', `修改了 ${PART_NAME_MAP[selectedPart]} 的問題紀錄`);
                 } else {
-                    setIssues([...issues, newIssue]);
+                    updated = [...updated, newIssue];
+                    setIssues(updated);
                     addLog('新增問題點', `記錄了 ${PART_NAME_MAP[selectedPart]} 的問題：${issueFormData.category}`);
                 }
                 setIsDirty(true);
@@ -1399,6 +1498,8 @@ const sheetTouchStartY = useRef(0);
                     designPic: '', devPic: '', exactPosition: null, customPart1: '', customPart2: ''
                 });
                 setTempPhotoUrl(null);
+
+                autoSaveWO(measurements, updated);
             };
 
             const handleCreateWO = () => {
