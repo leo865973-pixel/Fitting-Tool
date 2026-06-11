@@ -574,9 +574,9 @@
             }, []);
 
             const handleSvgMouseDown = (e) => {
-                if (e.button === 1) {
-                    e.preventDefault(); // Prevent default middle-click auto-scroll
-                }
+                if (e.button !== 1) return; // 只有中鍵允許平移
+                e.preventDefault(); // Prevent default middle-click auto-scroll
+
                 if (!isDragging) {
                     panZoomState.current.isPanning = true;
                     panZoomState.current.startX = e.clientX;
