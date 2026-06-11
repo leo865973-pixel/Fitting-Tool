@@ -239,6 +239,8 @@ export const GridSvgViewer = React.memo(React.forwardRef(({
                     x="0" y="0" width="800" height="620" 
                     preserveAspectRatio="xMidYMid meet"
                     opacity="0.8"
+                    style={{ pointerEvents: 'none' }}
+                    draggable="false"
                 />
             )}
             <rect x="0" y="0" width="800" height="620" fill={currentView === '2d' ? "transparent" : "rgba(255,255,255,0.2)"} onClick={handleBackgroundClick} />

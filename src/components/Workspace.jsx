@@ -70,7 +70,13 @@ const sheetTouchStartY = useRef(0);
                         if (document.activeElement && document.activeElement.blur) {
                             document.activeElement.blur();
                         }
-                        handleBackgroundClick();
+                        // Force clearing selection directly instead of using handleBackgroundClick
+                        // to avoid dragFlag block, just in case.
+                        setPreviewRecordId(null);
+                        setSelectedPart(null);
+                        setFormData({ part2: '', gap: '', flush: '', exactPosition: null, customPart1: '', customPart2: '' });
+                        setIssueFormData(prev => ({ ...prev, part2: '', exactPosition: null, customPart1: '', customPart2: '' }));
+                        setSheetState('collapsed');
                         return;
                     }
 
@@ -86,7 +92,7 @@ const sheetTouchStartY = useRef(0);
                 };
                 window.addEventListener('keydown', handleKeyDown);
                 return () => window.removeEventListener('keydown', handleKeyDown);
-            }, [setCurrentView, handleCreateWO, handleBackgroundClick]);
+            }, [setCurrentView, handleCreateWO]);
 
             const handleResetView = () => {
                 if (gridSvgRef.current) gridSvgRef.current.resetView();
@@ -377,6 +383,41 @@ const sheetTouchStartY = useRef(0);
                 }
             };
 
+            const autoSaveWO = (updatedMeasurements, updatedIssues) => {
+                const isExisting = workOrders.some(wo => wo.id === currentWOId);
+                
+                if (isExisting) {
+                    const newWO = { 
+                        id: currentWOId, 
+                        date: new Date().toLocaleString(), 
+                        model: currentModel.name, 
+                        data: updatedMeasurements, 
+                        issueData: updatedIssues 
+                    };
+                    createWorkOrder(newWO);
+                    showToast(`工單已自動更新 (${currentWOId})`, 'success');
+                    setIsDirty(false);
+                } else {
+                    setIsDirty(true);
+                    openPrompt("自動建立工單", "偵測到新資料！請確認或變更工單名稱：", currentWOId, (newId) => {
+                        const finalId = newId && newId.trim() ? newId.trim() : currentWOId;
+                        const newWO = { 
+                            id: finalId, 
+                            date: new Date().toLocaleString(), 
+                            model: currentModel.name, 
+                            data: updatedMeasurements, 
+                            issueData: updatedIssues 
+                        };
+                        createWorkOrder(newWO);
+                        if (finalId !== currentWOId) {
+                            setCurrentWOId(finalId);
+                        }
+                        showToast(`已建立並儲存工單 ${finalId}`, 'success');
+                        setIsDirty(false);
+                    });
+                }
+            };
+
             const handleSaveMeasurement = () => {
                 const p1 = selectedPart === 'custom_point' ? (formData.customPart1 || 'custom_point') : selectedPart;
                 const p2 = selectedPart === 'custom_point' ? (formData.customPart2 || 'custom_point') : formData.part2;
@@ -393,23 +434,25 @@ const sheetTouchStartY = useRef(0);
                     photoUrl: tempPhotoUrl, exactPosition: formData.exactPosition
                 };
                 
-                const existingIndex = measurements.findIndex(m => m.id === newRecord.id);
+                let updated = [...measurements];
+                const existingIndex = updated.findIndex(m => m.id === newRecord.id);
                 if (existingIndex >= 0) {
-                    const updated = [...measurements];
                     updated[existingIndex] = newRecord;
                     setMeasurements(updated);
                     addLog('修改量測', `修改了 ${PART_NAME_MAP[selectedPart]} 與 ${PART_NAME_MAP[formData.part2]} 的量測數據`);
                 } else {
-                    setMeasurements([...measurements, newRecord]);
+                    updated = [...updated, newRecord];
+                    setMeasurements(updated);
                     addLog('新增量測', `記錄了 ${PART_NAME_MAP[selectedPart]} 與 ${PART_NAME_MAP[formData.part2]} 的量測數據`);
                 }
-                setIsDirty(true);
                 
                 updateModel({ ...currentModel, updatedAt: new Date().toLocaleString() });
                 setSelectedPart(null);
                 setSheetState('collapsed');
                 setFormData({ part2: '', gap: '', flush: '', exactPosition: null, customPart1: '', customPart2: '' });
                 setTempPhotoUrl(null);
+                
+                autoSaveWO(updated, issues);
             };
 
             const handleExportPDF = async () => {
@@ -551,17 +594,17 @@ const sheetTouchStartY = useRef(0);
                     photoUrl: tempPhotoUrl
                 };
                 
-                const existingIndex = issues.findIndex(i => i.id === newIssue.id);
+                let updated = [...issues];
+                const existingIndex = updated.findIndex(i => i.id === newIssue.id);
                 if (existingIndex >= 0) {
-                    const updated = [...issues];
                     updated[existingIndex] = newIssue;
                     setIssues(updated);
                     addLog('修改問題點', `修改了 ${PART_NAME_MAP[selectedPart]} 的問題紀錄`);
                 } else {
-                    setIssues([...issues, newIssue]);
+                    updated = [...updated, newIssue];
+                    setIssues(updated);
                     addLog('新增問題點', `記錄了 ${PART_NAME_MAP[selectedPart]} 的問題：${issueFormData.category}`);
                 }
-                setIsDirty(true);
                 
                 updateModel({ ...currentModel, updatedAt: new Date().toLocaleString() });
                 setSelectedPart(null);
@@ -572,6 +615,8 @@ const sheetTouchStartY = useRef(0);
                     designPic: '', devPic: '', exactPosition: null, customPart1: '', customPart2: ''
                 });
                 setTempPhotoUrl(null);
+                
+                autoSaveWO(measurements, updated);
             };
 
             const handleCreateWO = () => {
