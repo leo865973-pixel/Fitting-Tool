@@ -60,6 +60,39 @@ export const GridSvgViewer = React.memo(React.forwardRef(({
             panZoomState.current.startX = e.clientX;
             panZoomState.current.startY = e.clientY;
             panZoomState.current.startViewBox = viewBox;
+            
+            // Attach global listeners for reliable dragging
+            window.addEventListener('mousemove', handleWindowMouseMove);
+            window.addEventListener('mouseup', handleWindowMouseUp);
+        }
+    };
+
+    const handleWindowMouseMove = (e) => {
+        if (panZoomState.current.isPanning) {
+            const svg = svgRef.current;
+            if (!svg) return;
+            const rect = svg.getBoundingClientRect();
+            const clientX = e.clientX;
+            const clientY = e.clientY;
+            const dx = clientX - panZoomState.current.startX;
+            const dy = clientY - panZoomState.current.startY;
+            const scaleX = viewBox.w / rect.width;
+            const scaleY = viewBox.h / rect.height;
+            setViewBox({
+                ...viewBox,
+                x: panZoomState.current.startViewBox.x - dx * scaleX,
+                y: panZoomState.current.startViewBox.y - dy * scaleY
+            });
+            dragFlag.current = true;
+        }
+    };
+
+    const handleWindowMouseUp = () => {
+        if (panZoomState.current.isPanning) {
+            panZoomState.current.isPanning = false;
+            setTimeout(() => { dragFlag.current = false; }, 500);
+            window.removeEventListener('mousemove', handleWindowMouseMove);
+            window.removeEventListener('mouseup', handleWindowMouseUp);
         }
     };
 
@@ -81,20 +114,23 @@ export const GridSvgViewer = React.memo(React.forwardRef(({
 
     const handleSvgMouseMove = (e) => {
         if (panZoomState.current.isPanning) {
-            const svg = svgRef.current;
-            const rect = svg.getBoundingClientRect();
-            const clientX = e.clientX || (e.touches && e.touches[0].clientX);
-            const clientY = e.clientY || (e.touches && e.touches[0].clientY);
-            const dx = clientX - panZoomState.current.startX;
-            const dy = clientY - panZoomState.current.startY;
-            const scaleX = viewBox.w / rect.width;
-            const scaleY = viewBox.h / rect.height;
-            setViewBox({
-                ...viewBox,
-                x: panZoomState.current.startViewBox.x - dx * scaleX,
-                y: panZoomState.current.startViewBox.y - dy * scaleY
-            });
-            dragFlag.current = true;
+            // Already handled by window listener for mouse, but keep for touch
+            if (e.touches) {
+                const svg = svgRef.current;
+                const rect = svg.getBoundingClientRect();
+                const clientX = e.touches[0].clientX;
+                const clientY = e.touches[0].clientY;
+                const dx = clientX - panZoomState.current.startX;
+                const dy = clientY - panZoomState.current.startY;
+                const scaleX = viewBox.w / rect.width;
+                const scaleY = viewBox.h / rect.height;
+                setViewBox({
+                    ...viewBox,
+                    x: panZoomState.current.startViewBox.x - dx * scaleX,
+                    y: panZoomState.current.startViewBox.y - dy * scaleY
+                });
+                dragFlag.current = true;
+            }
             return;
         }
 

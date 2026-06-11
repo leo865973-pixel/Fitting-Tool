@@ -90,8 +90,8 @@ const sheetTouchStartY = useRef(0);
                         handleCreateWO();
                     }
                 };
-                window.addEventListener('keydown', handleKeyDown);
-                return () => window.removeEventListener('keydown', handleKeyDown);
+                window.addEventListener('keydown', handleKeyDown, true);
+                return () => window.removeEventListener('keydown', handleKeyDown, true);
             }, [setCurrentView, handleCreateWO]);
 
             const handleResetView = () => {
