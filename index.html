@@ -1274,7 +1274,7 @@ const sheetTouchStartY = useRef(0);
                         issueData: updatedIssues 
                     };
                     createWorkOrder(newWO);
-                    alert(`已自動儲存工單：\n${currentWOId}`);
+                    showToast(已自動儲存工單：, \'success\');
                     setIsDirty(false);
                 } else {
                     setIsDirty(true);
@@ -2594,7 +2594,7 @@ const sheetTouchStartY = useRef(0);
                     annotatingPhoto.onSave(result.url);
                     setAnnotatingPhoto(null);
                 } else {
-                    alert(`標註儲存失敗: ${result.error}`);
+                    showToast(上傳失敗: , \'error\');
                     if (result.error && result.error.toLowerCase().includes('key')) {
                         localStorage.removeItem('imgbb_api_key');
                     }
